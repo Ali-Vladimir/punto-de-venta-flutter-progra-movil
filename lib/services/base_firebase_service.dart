@@ -59,6 +59,15 @@ abstract class BaseFirebaseService<T> {
     return null;
   }
 
+  // Obtener todos los documentos
+  Future<List<T>> getAll(String companyId) async {
+    final snapshot = await getCompanyCollection(companyId)
+        .orderBy('createdAt', descending: true)
+        .get();
+    
+    return snapshot.docs.map((doc) => fromFirestore(doc)).toList();
+  }
+
   // Streams para escuchar cambios
   Stream<QuerySnapshot> getAllStream(String companyId) {
     return getCompanyCollection(companyId)

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/sale_dto.dart';
 import '../models/sale_item_dto.dart';
+import '../models/customer_dto.dart';
 import 'base_firebase_service.dart';
+import 'customer_service.dart';
 
 class SaleService extends BaseFirebaseService<SaleDTO> {
   SaleService() : super('sales');
@@ -205,6 +207,123 @@ class SaleService extends BaseFirebaseService<SaleDTO> {
       // Fallback: usar timestamp como número único
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       return '$prefix${(timestamp % 10000).toString().padLeft(4, '0')}';
+    }
+  }
+
+  // Eliminar una venta y actualizar deuda del cliente
+  Future<void> deleteSaleWithItems(
+    String companyId, 
+    String saleId, 
+    SaleDTO sale
+  ) async {
+    try {
+      print('🗑️ Eliminando venta: $saleId');
+      
+      // Eliminar items de la venta
+      final itemsSnapshot = await getCompanyCollection(companyId)
+          .doc(saleId)
+          .collection('items')
+          .get();
+      
+      for (final itemDoc in itemsSnapshot.docs) {
+        await itemDoc.reference.delete();
+        print('✅ Item eliminado: ${itemDoc.id}');
+      }
+      
+      // Eliminar la venta principal
+      await getCompanyCollection(companyId).doc(saleId).delete();
+      print('✅ Venta principal eliminada: $saleId');
+      
+      // Actualizar deuda del cliente si era venta a crédito
+      if (sale.paymentMethod == 'credit' && sale.customerId != null) {
+        await _updateCustomerDebtOnDelete(companyId, sale.customerId!, sale.total ?? 0.0);
+      }
+      
+      print('🎉 Venta eliminada completamente: $saleId');
+    } catch (e) {
+      print('❌ Error eliminando venta: $e');
+      rethrow;
+    }
+  }
+  
+  // Actualizar deuda del cliente al eliminar venta
+  Future<void> _updateCustomerDebtOnDelete(String companyId, String customerId, double amount) async {
+    try {
+      final customerService = CustomerService();
+      final customer = await customerService.getById(companyId, customerId);
+      
+      if (customer != null) {
+        final updatedCustomer = CustomerDTO(
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          address: customer.address,
+          taxId: customer.taxId,
+          creditLimit: customer.creditLimit,
+          currentDebt: (customer.currentDebt ?? 0.0) - amount, // Restar la deuda
+          customerType: customer.customerType,
+          companyId: customer.companyId,
+          isActive: customer.isActive,
+          createdAt: customer.createdAt,
+        );
+        
+        await customerService.update(companyId, customerId, updatedCustomer);
+        print('✅ Deuda del cliente actualizada: -\$${amount.toStringAsFixed(2)}');
+      }
+    } catch (e) {
+      print('❌ Error al actualizar deuda del cliente: $e');
+      // No fallar la eliminación por esto
+    }
+  }
+
+  // Actualizar una venta completa con sus items
+  Future<void> updateSaleWithItems(
+    String companyId,
+    String saleId,
+    SaleDTO sale,
+    List<SaleItemDTO> items
+  ) async {
+    try {
+      print('💾 Iniciando actualización de venta...');
+      
+      final batch = FirebaseFirestore.instance.batch();
+      
+      // Actualizar la venta principal
+      final saleRef = getCompanyCollection(companyId).doc(saleId);
+      final saleData = toFirestore(sale);
+      saleData['updatedAt'] = FieldValue.serverTimestamp();
+      
+      batch.update(saleRef, saleData);
+      
+      // Eliminar items existentes
+      final existingItemsSnapshot = await saleRef
+          .collection('items')
+          .get();
+      
+      for (final doc in existingItemsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Agregar los nuevos items
+      for (final item in items) {
+        final itemRef = saleRef.collection('items').doc();
+        final itemData = item.toJson();
+        itemData.remove('id');
+        itemData['saleId'] = saleId;
+        itemData['createdAt'] = FieldValue.serverTimestamp();
+        
+        batch.set(itemRef, itemData);
+      }
+      
+      // Ejecutar todas las operaciones
+      await batch.commit();
+      
+      print('✅ Venta actualizada exitosamente: $saleId');
+      
+    } catch (e) {
+      print('❌ Error actualizando venta: $e');
+      throw Exception('Error al actualizar venta: $e');
     }
   }
 }

@@ -204,6 +204,14 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.receipt_long),
+            title: const Text('Gestión de Ventas'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/sales-management');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.inventory_2_outlined),
             title: const Text('Productos'),
             onTap: () {

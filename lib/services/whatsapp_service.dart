@@ -128,6 +128,95 @@ ${items.map((item) => '• ${item.name} (${item.quantity}) - \$${item.subtotal.t
 ''';
   }
   
+  static String buildSaleDeletedMessage({
+    required CustomerDTO customer,
+    required String saleNumber,
+    required double deletedAmount,
+  }) {
+    final customerName = customer.name ?? 'Cliente';
+    final currentDebt = customer.currentDebt ?? 0.0;
+    final creditLimit = customer.creditLimit ?? 0.0;
+    final now = DateTime.now();
+    
+    return '''
+🗑️ *Venta Cancelada*
+
+Hola $customerName,
+
+❌ La venta ha sido cancelada
+
+📋 *Detalles de la cancelación:*
+• Número de venta: #$saleNumber
+• Fecha de cancelación: ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}
+• Monto cancelado: \$${deletedAmount.toStringAsFixed(2)}
+
+💳 *Estado de cuenta actualizado:*
+• Deuda actual: \$${currentDebt.toStringAsFixed(2)}
+• Límite de crédito: \$${creditLimit.toStringAsFixed(2)}
+• Crédito disponible: \$${(creditLimit - currentDebt).toStringAsFixed(2)}
+
+Si tienes alguna pregunta sobre esta cancelación, no dudes en contactarnos.
+
+Gracias por tu comprensión 🙏
+''';
+  }
+  
+  static String buildSaleEditedMessage({
+    required CustomerDTO customer,
+    required String saleNumber,
+    required double newTotal,
+    required double previousTotal,
+    required String paymentMethod,
+    required List<SaleItemInfo> items,
+  }) {
+    final customerName = customer.name ?? 'Cliente';
+    final currentDebt = customer.currentDebt ?? 0.0;
+    final creditLimit = customer.creditLimit ?? 0.0;
+    final now = DateTime.now();
+    final difference = newTotal - previousTotal;
+    
+    String paymentMethodText;
+    switch (paymentMethod) {
+      case 'cash':
+        paymentMethodText = 'Efectivo';
+        break;
+      case 'card':
+        paymentMethodText = 'Tarjeta';
+        break;
+      case 'credit':
+        paymentMethodText = 'Crédito';
+        break;
+      default:
+        paymentMethodText = paymentMethod;
+    }
+    
+    return '''
+✏️ *Venta Modificada*
+
+Hola $customerName,
+
+✅ Tu venta ha sido modificada
+
+📋 *Detalles de la modificación:*
+• Número de venta: #$saleNumber
+• Fecha de modificación: ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}
+• Total anterior: \$${previousTotal.toStringAsFixed(2)}
+• *Nuevo total: \$${newTotal.toStringAsFixed(2)}*
+• Diferencia: ${difference >= 0 ? '+' : ''}\$${difference.toStringAsFixed(2)}
+• Método de pago: $paymentMethodText
+
+📦 *Productos actualizados:*
+${items.map((item) => '• ${item.name} (${item.quantity}) - \$${item.subtotal.toStringAsFixed(2)}').join('\n')}
+
+💳 *Estado de cuenta actualizado:*
+• Deuda actual: \$${currentDebt.toStringAsFixed(2)}
+• Límite de crédito: \$${creditLimit.toStringAsFixed(2)}
+• Crédito disponible: \$${(creditLimit - currentDebt).toStringAsFixed(2)}
+
+¡Gracias por tu compra! 🙏
+''';
+  }
+  
   static String buildCreditLimitExceededMessage({
     required CustomerDTO customer,
     required double attemptedTotal,

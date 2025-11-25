@@ -45,6 +45,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   String _paymentMethod = 'cash'; // cash, credit
   String _saleStep = 'products'; // products, customer, payment, summary
   
+  // Modo edición
+  bool _isEditMode = false;
+  SaleDTO? _saleToEdit;
+  
   // Controladores
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -53,6 +57,21 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   void initState() {
     super.initState();
     _initializeScreen();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Verificar si se está en modo edición
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null && args['editMode'] == true) {
+      _isEditMode = true;
+      _saleToEdit = args['saleToEdit'] as SaleDTO?;
+      if (_saleToEdit != null) {
+        _loadSaleForEditing();
+      }
+    }
   }
 
   Future<void> _initializeScreen() async {
@@ -133,6 +152,86 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al cargar datos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadSaleForEditing() async {
+    if (_saleToEdit == null) return;
+
+    try {
+      // Cargar items de la venta
+      final saleItems = await _saleService.getSaleItems(_companyId, _saleToEdit!.id!);
+      
+      // Convertir SaleItemDTO a SaleItemModel para el carrito
+      final cartItems = <SaleItemModel>[];
+      
+      for (final item in saleItems) {
+        String itemName = 'Producto/Variedad';
+        String itemId = '';
+        
+        if (item.productId != null) {
+          // Es un producto
+          final product = _products.where((p) => p.id == item.productId).firstOrNull;
+          itemName = product?.name ?? 'Producto eliminado';
+          itemId = 'product_${item.productId}';
+          
+          cartItems.add(SaleItemModel(
+            id: itemId,
+            productId: item.productId,
+            name: itemName,
+            quantity: item.quantity ?? 1,
+            unitPrice: item.unitPrice ?? 0.0,
+            subtotal: (item.quantity ?? 1) * (item.unitPrice ?? 0.0),
+          ));
+        } else if (item.productVarietyId != null) {
+          // Es una variedad
+          final variety = _varieties.where((v) => v.id == item.productVarietyId).firstOrNull;
+          itemName = variety?.name ?? 'Variedad eliminada';
+          itemId = 'variety_${item.productVarietyId}';
+          
+          cartItems.add(SaleItemModel(
+            id: itemId,
+            productVarietyId: item.productVarietyId,
+            name: itemName,
+            quantity: item.quantity ?? 1,
+            unitPrice: item.unitPrice ?? 0.0,
+            subtotal: (item.quantity ?? 1) * (item.unitPrice ?? 0.0),
+          ));
+        }
+      }
+
+      // Buscar el cliente si existe
+      CustomerDTO? selectedCustomer;
+      if (_saleToEdit!.customerId != null) {
+        try {
+          selectedCustomer = _customers.firstWhere(
+            (c) => c.id == _saleToEdit!.customerId,
+          );
+        } catch (e) {
+          // Cliente no encontrado en la lista actual
+          selectedCustomer = await _customerService.getById(_companyId, _saleToEdit!.customerId!);
+        }
+      }
+
+      setState(() {
+        _cartItems = cartItems;
+        _selectedCustomer = selectedCustomer;
+        _paymentMethod = _saleToEdit!.paymentMethod ?? 'cash';
+        _notesController.text = _saleToEdit!.notes ?? '';
+      });
+
+      print('✅ Venta cargada para edición: ${_cartItems.length} items');
+      
+    } catch (e) {
+      print('💥 Error cargando venta para edición: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cargando venta: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -253,7 +352,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         setState(() => _saleStep = 'summary');
         break;
       case 'summary':
-        _createSale();
+        _processSale();
         break;
     }
   }
@@ -269,6 +368,96 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       case 'summary':
         setState(() => _saleStep = 'payment');
         break;
+    }
+  }
+
+  Future<void> _processSale() async {
+    if (_isEditMode) {
+      await _updateSale();
+    } else {
+      await _createSale();
+    }
+  }
+
+  Future<void> _updateSale() async {
+    if (_saleToEdit == null) return;
+
+    try {
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Crear la venta actualizada
+      final updatedSale = SaleDTO(
+        id: _saleToEdit!.id,
+        number: _saleToEdit!.number,
+        customerId: _selectedCustomer?.id,
+        createdBy: _saleToEdit!.createdBy,
+        storeId: _saleToEdit!.storeId,
+        companyId: _companyId,
+        subtotal: _subtotal,
+        tax: 0.0,
+        total: _subtotal,
+        paymentMethod: _paymentMethod,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        saleDate: _saleToEdit!.saleDate,
+        status: 'completed',
+        createdAt: _saleToEdit!.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      // Crear los items de la venta actualizados
+      final saleItems = _cartItems.map((cartItem) => SaleItemDTO(
+        saleId: _saleToEdit!.id!,
+        productId: cartItem.productId,
+        productVarietyId: cartItem.productVarietyId,
+        quantity: cartItem.quantity,
+        unitPrice: cartItem.unitPrice,
+        subtotal: cartItem.subtotal,
+      )).toList();
+
+      // Actualizar la venta en Firestore
+      await _saleService.updateSaleWithItems(
+        _companyId,
+        _saleToEdit!.id!,
+        updatedSale,
+        saleItems,
+      );
+
+      print('✅ Venta actualizada: ${_saleToEdit!.number}');
+
+      // Cerrar loading
+      Navigator.pop(context);
+
+      // Mostrar éxito y regresar con resultado
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Venta ${_saleToEdit!.number} actualizada exitosamente'),
+          backgroundColor: _accentColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      Navigator.pop(context, true); // true indica que se editó exitosamente
+
+    } catch (e) {
+      // Cerrar loading si está abierto
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar venta: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -460,9 +649,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Nueva Venta',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          _isEditMode ? 'Editar Venta' : 'Nueva Venta',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,

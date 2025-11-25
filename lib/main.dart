@@ -11,6 +11,7 @@ import 'package:punto_de_venta/screens/app/admin/add_edit_variety_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/customers_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/home_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/new_sale_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/sales_management_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/product_varieties_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/products_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/providers_screen.dart';
@@ -58,6 +59,7 @@ class _MyAppState extends State<MyApp> {
             '/providers': (context) => const ProvidersScreen(),
             '/stores': (context) => const StoresScreen(),
             '/new-sale': (context) => const NewSaleScreen(),
+            '/sales-management': (context) => const SalesManagementScreen(),
           },
           onGenerateRoute: (settings) {
             switch (settings.name) {
