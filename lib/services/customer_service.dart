@@ -11,8 +11,8 @@ class CustomerService extends BaseFirebaseService<CustomerDTO> {
     return CustomerDTO.fromJson({
       'id': doc.id,
       ...data,
-      'createdAt': (data['createdAt'] as Timestamp?)?.toDate().toIso8601String(),
-      'updatedAt': (data['updatedAt'] as Timestamp?)?.toDate().toIso8601String(),
+      'createdAt': BaseFirebaseService.convertTimestamp(data['createdAt']),
+      'updatedAt': BaseFirebaseService.convertTimestamp(data['updatedAt']),
     });
   }
 

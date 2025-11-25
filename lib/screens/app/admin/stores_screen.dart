@@ -34,16 +34,39 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Future<void> _initializeScreen() async {
     try {
+      print('🔄 Inicializando pantalla de tiendas...');
+      
+      // Inicializar contexto del AuthService
+      await _authService.initializeContext();
+      print('✅ AuthService inicializado');
+      
       final userInfo = _authService.currentUserInfo;
+      print('👤 Usuario actual: ${userInfo?.displayName ?? userInfo?.userId}');
+      print('🏢 Company ID: ${userInfo?.companyId}');
+      
       if (userInfo != null && userInfo.companyId != null) {
         setState(() => _companyId = userInfo.companyId!);
         await _loadStores();
+      } else {
+        setState(() => _isLoading = false);
+        print('❌ No se pudo obtener companyId del usuario');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo obtener información de la empresa'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      setState(() => _isLoading = false);
+      print('❌ Error al inicializar: $e');
+      print('🔍 Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error al inicializar: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -52,26 +75,89 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Future<void> _loadStores() async {
-    if (_companyId.isEmpty) return;
+    if (_companyId.isEmpty) {
+      print('❌ No se puede cargar tiendas: companyId está vacío');
+      return;
+    }
     
     try {
+      print('📍 Cargando tiendas para empresa: $_companyId');
       setState(() => _isLoading = true);
+      
       final stores = await _storeService.getActiveStores(_companyId);
-      setState(() {
-        _stores = stores;
-        _filteredStores = stores;
-        _isLoading = false;
-      });
+      print('✅ Tiendas cargadas: ${stores.length}');
+      
+      if (stores.isNotEmpty) {
+        print('🏪 Tiendas encontradas:');
+        for (var store in stores) {
+          print('  - ${store.name} (ID: ${store.id})');
+        }
+      }
+      
+      // Si no hay tiendas, crear una tienda por defecto
+      if (stores.isEmpty) {
+        print('🏪 No hay tiendas, creando tienda por defecto...');
+        try {
+          await _createDefaultStore();
+          // Recargar tiendas después de crear la tienda por defecto
+          final updatedStores = await _storeService.getActiveStores(_companyId);
+          print('✅ Tiendas después de crear por defecto: ${updatedStores.length}');
+          setState(() {
+            _stores = updatedStores;
+            _filteredStores = updatedStores;
+            _isLoading = false;
+          });
+        } catch (e) {
+          print('❌ Error creando tienda por defecto: $e');
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error creando tienda por defecto: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        setState(() {
+          _stores = stores;
+          _filteredStores = stores;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
+      print('❌ Error al cargar tiendas: $e');
+      print('🔍 Stack trace: ${StackTrace.current}');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al cargar tiendas: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+    }
+  }
+
+  Future<void> _createDefaultStore() async {
+    try {
+      final defaultStore = StoreDTO(
+        name: 'Tienda Principal',
+        address: 'Dirección por definir',
+        phone: 'Teléfono por definir',
+        email: 'tienda@empresa.com',
+        companyId: _companyId,
+        isActive: true,
+      );
+      
+      await _storeService.insert(_companyId, defaultStore);
+      print('✅ Tienda por defecto creada exitosamente');
+    } catch (e) {
+      print('❌ Error creando tienda por defecto: $e');
+      throw e;
     }
   }
 

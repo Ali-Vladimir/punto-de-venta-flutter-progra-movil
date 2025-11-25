@@ -14,6 +14,18 @@ abstract class BaseFirebaseService<T> {
         .collection(collectionName);
   }
 
+  // Utilidad para convertir timestamps de forma segura
+  static String? convertTimestamp(dynamic timestamp) {
+    if (timestamp == null) return null;
+    if (timestamp is Timestamp) {
+      return timestamp.toDate().toIso8601String();
+    }
+    if (timestamp is String) {
+      return timestamp;
+    }
+    return null;
+  }
+
   // Métodos abstractos que cada servicio debe implementar
   T fromFirestore(DocumentSnapshot doc);
   Map<String, dynamic> toFirestore(T item);

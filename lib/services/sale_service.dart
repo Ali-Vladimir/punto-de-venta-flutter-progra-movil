@@ -12,9 +12,9 @@ class SaleService extends BaseFirebaseService<SaleDTO> {
     return SaleDTO.fromJson({
       'id': doc.id,
       ...data,
-      'saleDate': (data['saleDate'] as Timestamp?)?.toDate().toIso8601String(),
-      'createdAt': (data['createdAt'] as Timestamp?)?.toDate().toIso8601String(),
-      'updatedAt': (data['updatedAt'] as Timestamp?)?.toDate().toIso8601String(),
+      'saleDate': BaseFirebaseService.convertTimestamp(data['saleDate']),
+      'createdAt': BaseFirebaseService.convertTimestamp(data['createdAt']),
+      'updatedAt': BaseFirebaseService.convertTimestamp(data['updatedAt']),
     });
   }
 
