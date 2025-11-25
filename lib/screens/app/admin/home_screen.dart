@@ -198,7 +198,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ListTile(
             leading: const Icon(Icons.point_of_sale),
             title: const Text('Nueva Venta'),
-            onTap: () {},
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/new-sale');
+            },
           ),
           ListTile(
             leading: const Icon(Icons.inventory_2_outlined),
@@ -222,6 +225,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/providers');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.storefront_outlined),
+            title: const Text('Tiendas'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/stores');
             },
           ),
           ListTile(

@@ -33,39 +33,47 @@ class SaleService extends BaseFirebaseService<SaleDTO> {
     return json;
   }
 
-  // Crear una venta completa con sus items
+  // Crear una venta completa con sus items - Versión simplificada
   Future<String> createSaleWithItems(
     String companyId, 
     SaleDTO sale, 
     List<SaleItemDTO> items
   ) async {
-    final batch = firestore.batch();
-    
-    // Crear la venta
-    final saleRef = getCompanyCollection(companyId).doc();
-    batch.set(saleRef, {
-      ...toFirestore(sale),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    
-    // Crear los items de la venta
-    final itemsCollection = saleRef.collection('items');
-    for (final item in items) {
-      final itemRef = itemsCollection.doc();
-      final itemJson = item.toJson();
-      itemJson.remove('id');
-      itemJson['saleId'] = saleRef.id;
+    try {
+      print('💾 Iniciando creación de venta...');
       
-      batch.set(itemRef, {
-        ...itemJson,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Crear la venta principal
+      final saleRef = getCompanyCollection(companyId).doc();
+      final saleData = toFirestore(sale);
+      saleData['createdAt'] = FieldValue.serverTimestamp();
+      saleData['updatedAt'] = FieldValue.serverTimestamp();
+      
+      print('📍 Guardando venta en: companies/$companyId/$collectionName/${saleRef.id}');
+      print('📄 Datos de venta: $saleData');
+      
+      await saleRef.set(saleData);
+      print('✅ Venta principal creada: ${saleRef.id}');
+      
+      // Crear los items uno por uno para evitar problemas de batch
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
+        final itemRef = saleRef.collection('items').doc();
+        final itemJson = item.toJson();
+        itemJson.remove('id');
+        itemJson['saleId'] = saleRef.id;
+        itemJson['createdAt'] = FieldValue.serverTimestamp();
+        itemJson['updatedAt'] = FieldValue.serverTimestamp();
+        
+        await itemRef.set(itemJson);
+        print('✅ Item ${i + 1}/${items.length} creado');
+      }
+      
+      print('🎉 Venta completa creada: ${saleRef.id}');
+      return saleRef.id;
+    } catch (e) {
+      print('❌ Error creando venta: $e');
+      rethrow;
     }
-    
-    await batch.commit();
-    return saleRef.id;
   }
 
   // Obtener items de una venta
@@ -96,67 +104,107 @@ class SaleService extends BaseFirebaseService<SaleDTO> {
     return await getWhere(companyId, 'storeId', storeId);
   }
 
-  // Obtener ventas por rango de fechas
+  // Obtener ventas por rango de fechas - Versión simplificada
   Future<List<SaleDTO>> getSalesByDateRange(
     String companyId, 
     DateTime startDate, 
     DateTime endDate
   ) async {
-    final snapshot = await getCompanyCollection(companyId)
-        .where('saleDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('saleDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-        .get();
-    
-    return snapshot.docs.map((doc) => fromFirestore(doc)).toList();
-  }
-
-  // Obtener total de ventas del día
-  Future<double> getDailySalesTotal(String companyId, String storeId, DateTime date) async {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
-    
-    final snapshot = await getCompanyCollection(companyId)
-        .where('storeId', isEqualTo: storeId)
-        .where('saleDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('saleDate', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-        .where('status', isEqualTo: 'completed')
-        .get();
-    
-    double total = 0.0;
-    for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      total += (data['total'] as num?)?.toDouble() ?? 0.0;
+    try {
+      // Obtener todas las ventas y filtrar localmente
+      final snapshot = await getCompanyCollection(companyId).get();
+      
+      final results = <SaleDTO>[];
+      
+      for (final doc in snapshot.docs) {
+        final sale = fromFirestore(doc);
+        
+        if (sale.saleDate != null) {
+          final saleDate = sale.saleDate!;
+          if (saleDate.isAfter(startDate.subtract(Duration(days: 1))) && 
+              saleDate.isBefore(endDate.add(Duration(days: 1)))) {
+            results.add(sale);
+          }
+        }
+      }
+      
+      return results;
+    } catch (e) {
+      print('❌ Error obteniendo ventas por rango: $e');
+      return [];
     }
-    
-    return total;
   }
 
-  // Generar número consecutivo de venta
+  // Obtener total de ventas del día - Versión ultra simplificada
+  Future<double> getDailySalesTotal(String companyId, String storeId, DateTime date) async {
+    try {
+      // Consulta más simple posible - solo por storeId
+      final snapshot = await getCompanyCollection(companyId)
+          .where('storeId', isEqualTo: storeId)
+          .get();
+      
+      final targetDate = DateTime(date.year, date.month, date.day);
+      double total = 0.0;
+      
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        
+        // Verificar fecha localmente
+        final saleDate = (data['saleDate'] as Timestamp?)?.toDate();
+        if (saleDate != null) {
+          final saleDateOnly = DateTime(saleDate.year, saleDate.month, saleDate.day);
+          final status = data['status'] as String?;
+          
+          if (saleDateOnly == targetDate && status == 'completed') {
+            total += (data['total'] as num?)?.toDouble() ?? 0.0;
+          }
+        }
+      }
+      
+      return total;
+    } catch (e) {
+      print('❌ Error obteniendo total de ventas: $e');
+      return 0.0;
+    }
+  }
+
+  // Generar número consecutivo de venta - Versión ultra simplificada
   Future<String> generateSaleNumber(String companyId, String storeId) async {
     final today = DateTime.now();
     final prefix = '${today.year}${today.month.toString().padLeft(2, '0')}${today.day.toString().padLeft(2, '0')}';
     
-    final lastSale = await getCompanyCollection(companyId)
-        .where('storeId', isEqualTo: storeId)
-        .where('number', isGreaterThanOrEqualTo: prefix)
-        .where('number', isLessThan: '${prefix}Z')
-        .orderBy('number', descending: true)
-        .limit(1)
-        .get();
-    
-    int consecutive = 1;
-    if (lastSale.docs.isNotEmpty) {
-      // data() can return null or may not contain 'number', so access safely
-      final docData = lastSale.docs.first.data() as Map<String, dynamic>?;
-      final lastNumber = docData?['number'] as String?;
-      if (lastNumber != null && lastNumber.length > prefix.length) {
-        final parsed = int.tryParse(lastNumber.substring(prefix.length));
-        if (parsed != null) {
-          consecutive = parsed + 1;
+    try {
+      // Consulta más simple posible - solo por storeId
+      final todaySales = await getCompanyCollection(companyId)
+          .where('storeId', isEqualTo: storeId)
+          .get();
+      
+      int maxConsecutive = 0;
+      
+      // Procesamos todas las ventas de esta tienda para encontrar el número más alto del día
+      for (final doc in todaySales.docs) {
+        final docData = doc.data() as Map<String, dynamic>?;
+        final saleNumber = docData?['number'] as String?;
+        
+        // Solo procesar números que empiecen con el prefijo de hoy
+        if (saleNumber != null && 
+            saleNumber.startsWith(prefix) && 
+            saleNumber.length == prefix.length + 4) { // Exactamente prefix + 4 dígitos
+          final consecutivePart = saleNumber.substring(prefix.length);
+          final parsed = int.tryParse(consecutivePart);
+          if (parsed != null && parsed > maxConsecutive) {
+            maxConsecutive = parsed;
+          }
         }
       }
+      
+      final newConsecutive = maxConsecutive + 1;
+      return '$prefix${newConsecutive.toString().padLeft(4, '0')}';
+    } catch (e) {
+      print('❌ Error generando número de venta: $e');
+      // Fallback: usar timestamp como número único
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      return '$prefix${(timestamp % 10000).toString().padLeft(4, '0')}';
     }
-    
-    return '$prefix${consecutive.toString().padLeft(4, '0')}';
   }
 }
