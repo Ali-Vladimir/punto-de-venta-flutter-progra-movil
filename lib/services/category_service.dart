@@ -62,29 +62,16 @@ class CategoryService extends BaseFirebaseService<CategoryDTO> {
 
   // Obtener categorías activas
   Future<List<CategoryDTO>> getActiveCategories(String companyId) async {
-    print('DEBUG: CategoryService.getActiveCategories para company: $companyId');
-    
-    // Intentar consulta directa con where
     try {
       final result = await getWhere(companyId, 'isActive', true);
-      print('DEBUG: CategoryService.getActiveCategories (método getWhere) encontró: ${result.length} categorías');
-      for (final category in result) {
-        print('DEBUG: - ${category.name} (isActive: ${category.isActive})');
-      }
       return result;
     } catch (e) {
       print('DEBUG: Error con getWhere: $e');
       
       // Fallback: obtener todas y filtrar manualmente
-      print('DEBUG: Intentando fallback - obtener todas y filtrar...');
       final snapshot = await getCompanyCollection(companyId).get();
       final allCategories = snapshot.docs.map((doc) => fromFirestore(doc)).toList();
       final activeCategories = allCategories.where((cat) => cat.isActive == true).toList();
-      
-      print('DEBUG: Fallback encontró: ${activeCategories.length} categorías activas de ${allCategories.length} total');
-      for (final category in activeCategories) {
-        print('DEBUG: - ${category.name} (isActive: ${category.isActive})');
-      }
       
       return activeCategories;
     }

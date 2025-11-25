@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/product_dto.dart';
+import '../../../models/category_dto.dart';
 import '../../../services/product_service.dart';
+import '../../../services/category_service.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final ProductDTO? product;
@@ -20,6 +22,7 @@ class AddEditProductScreen extends StatefulWidget {
 class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final ProductService _productService = ProductService();
+  final CategoryService _categoryService = CategoryService();
   
   final Color _primaryColor = const Color(0xFF1A237E);
   final Color _backgroundColor = const Color(0xFFF5F7FA);
@@ -31,6 +34,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final TextEditingController _skuController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
 
+  // Category related
+  List<CategoryDTO> _categories = [];
+  String? _selectedCategoryId;
+  bool _isLoadingCategories = true;
+  
   bool _isLoading = false;
   bool _isEditing = false;
 
@@ -38,8 +46,24 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.product != null;
+    _loadCategories();
     if (_isEditing) {
       _loadProductData();
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryService.getActiveCategories(widget.companyId);
+      setState(() {
+        _categories = categories;
+        _isLoadingCategories = false;
+      });
+    } catch (e) {
+      print('Error al cargar categorías: $e');
+      setState(() {
+        _isLoadingCategories = false;
+      });
     }
   }
 
@@ -48,6 +72,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _nameController.text = product.name ?? '';
     _descriptionController.text = product.description ?? '';
     _basePriceController.text = product.basePrice?.toString() ?? '';
+    _skuController.text = product.sku ?? '';
+    _barcodeController.text = product.barcode ?? '';
+    _selectedCategoryId = product.categoryId;
     _skuController.text = product.sku ?? '';
     _barcodeController.text = product.barcode ?? '';
   }
@@ -72,7 +99,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ? null 
             : _barcodeController.text.trim(),
         companyId: widget.companyId,
-        categoryId: null, // Por ahora no manejamos categorías
+        categoryId: _selectedCategoryId, // Ahora incluye la categoría seleccionada
         isActive: true,
         createdAt: _isEditing ? widget.product!.createdAt : null,
         updatedAt: _isEditing ? widget.product!.updatedAt : null,
@@ -201,6 +228,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       ),
                       const SizedBox(height: 16),
                       
+                      // Selector de categoría
+                      _buildCategorySelector(),
+                      const SizedBox(height: 16),
+                      
                       // Precio base
                       _buildTextField(
                         controller: _basePriceController,
@@ -325,6 +356,149 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildCategorySelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.category, color: _primaryColor, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Categoría',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_isLoadingCategories)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[50],
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(_primaryColor),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Cargando categorías...'),
+              ],
+            ),
+          )
+        else if (_categories.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[50],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey[600]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No hay categorías disponibles. Crea una categoría primero.',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            value: _selectedCategoryId,
+            decoration: InputDecoration(
+              labelText: 'Seleccionar categoría (opcional)',
+              prefixIcon: Icon(Icons.category_outlined, color: _primaryColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _primaryColor, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey[50],
+            ),
+            items: [
+              const DropdownMenuItem<String>(
+                value: null,
+                child: Text('Sin categoría'),
+              ),
+              ..._categories.map((category) {
+                return DropdownMenuItem<String>(
+                  value: category.id,
+                  child: Row(
+                    children: [
+                      if (category.color != null && category.icon != null) ...[
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: Color(int.parse('0xFF${category.color!.substring(1)}')),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            _getIconFromString(category.icon!),
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(category.name ?? 'Sin nombre'),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedCategoryId = value;
+              });
+            },
+          ),
+      ],
+    );
+  }
+
+  IconData _getIconFromString(String iconString) {
+    switch (iconString) {
+      case 'category': return Icons.category;
+      case 'shopping_cart': return Icons.shopping_cart;
+      case 'local_grocery_store': return Icons.local_grocery_store;
+      case 'store': return Icons.store;
+      case 'inventory': return Icons.inventory;
+      case 'lunch_dining': return Icons.lunch_dining;
+      case 'coffee': return Icons.coffee;
+      case 'wine_bar': return Icons.wine_bar;
+      case 'devices': return Icons.devices;
+      case 'sports_esports': return Icons.sports_esports;
+      case 'book': return Icons.book;
+      case 'home': return Icons.home;
+      default: return Icons.category;
+    }
   }
 
   Widget _buildTextField({

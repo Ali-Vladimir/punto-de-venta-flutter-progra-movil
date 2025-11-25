@@ -75,23 +75,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _loadCategories() async {
-    if (_companyId == null) {
-      print('DEBUG: Company ID es null en _loadCategories');
-      return;
-    }
+    if (_companyId == null) return;
     
-    print('DEBUG: Cargando categorías para company: $_companyId');
     try {
-      // TEMPORAL: Primero obtener TODAS las categorías para debug
-      final allCategories = await _categoryService.getAllCategoriesForDebug(_companyId!);
-      print('DEBUG: Total de categorías en Firebase: ${allCategories.length}');
-      
-      // Luego obtener solo las activas
+      // Obtener solo las activas
       final categories = await _categoryService.getActiveCategories(_companyId!);
-      print('DEBUG: Categorías activas cargadas: ${categories.length}');
-      for (final category in categories) {
-        print('DEBUG: - ${category.name} (${category.id})');
-      }
       setState(() {
         _categories = categories;
       });
@@ -150,6 +138,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
       case 'home': return Icons.home;
       default: return Icons.category;
     }
+  }
+
+  CategoryDTO? _getCategoryById(String? categoryId) {
+    if (categoryId == null) return null;
+    return _categories.firstWhere(
+      (category) => category.id == categoryId,
+      orElse: () => CategoryDTO(
+        id: categoryId,
+        name: 'Categoría no encontrada',
+        companyId: _companyId ?? '',
+      ),
+    );
   }
 
   Future<void> _showCategoryManagementDialog() async {
@@ -275,16 +275,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
         builder: (context) => const AddEditCategoryScreen(),
       ),
     );
-    print('DEBUG: Resultado de navegación: $result');
     if (result == true) {
-      print('DEBUG: Recargando categorías después de crear/editar');
-      // Refrescar el companyId por si se perdió
+      // Refrescar el companyId y recargar categorías
       _companyId = _authService.currentCompanyId;
-      print('DEBUG: Company ID refrescado: $_companyId');
       if (_companyId != null) {
         await _loadCategories();
-      } else {
-        print('DEBUG: Company ID es null después de refrescar');
       }
     }
   }
@@ -296,16 +291,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
         builder: (context) => AddEditCategoryScreen(category: category),
       ),
     );
-    print('DEBUG: Resultado de edición: $result');
     if (result == true) {
-      print('DEBUG: Recargando categorías después de editar');
-      // Refrescar el companyId por si se perdió
+      // Refrescar el companyId y recargar categorías
       _companyId = _authService.currentCompanyId;
-      print('DEBUG: Company ID refrescado: $_companyId');
       if (_companyId != null) {
         await _loadCategories();
-      } else {
-        print('DEBUG: Company ID es null después de refrescar');
       }
     }
   }
@@ -648,6 +638,62 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // Mostrar categoría si existe
+                                    if (product.categoryId != null) ...[
+                                      const SizedBox(height: 4),
+                                      Builder(
+                                        builder: (context) {
+                                          final category = _getCategoryById(product.categoryId);
+                                          if (category != null) {
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: category.color != null
+                                                  ? Color(int.parse('0xFF${category.color!.substring(1)}')).withOpacity(0.1)
+                                                  : Colors.grey.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (category.icon != null)
+                                                    Container(
+                                                      width: 16,
+                                                      height: 16,
+                                                      decoration: BoxDecoration(
+                                                        color: category.color != null
+                                                          ? Color(int.parse('0xFF${category.color!.substring(1)}'))
+                                                          : Colors.grey,
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Icon(
+                                                        _getIconFromString(category.icon),
+                                                        size: 10,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  if (category.icon != null) const SizedBox(width: 6),
+                                                  Text(
+                                                    category.name ?? 'Sin nombre',
+                                                    style: TextStyle(
+                                                      color: category.color != null
+                                                        ? Color(int.parse('0xFF${category.color!.substring(1)}'))
+                                                        : Colors.grey[700],
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
+                                          return Container();
+                                        },
+                                      ),
+                                    ],
                                     if (product.description?.isNotEmpty ?? false) ...[
                                       const SizedBox(height: 4),
                                       Text(
