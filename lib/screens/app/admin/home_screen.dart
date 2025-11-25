@@ -209,7 +209,23 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.people_outline),
+            leading: const Icon(Icons.people_outlined),
+            title: const Text('Clientes'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/customers');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.store_outlined),
+            title: const Text('Proveedores'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/providers');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.group_outlined),
             title: const Text('Empleados'),
             onTap: () {},
           ),

@@ -1,11 +1,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:punto_de_venta/firebase_options.dart';
+import 'package:punto_de_venta/screens/app/admin/add_edit_customer_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_product_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/add_edit_provider_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_variety_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/customers_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/home_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/product_varieties_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/products_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/providers_screen.dart';
 import 'package:punto_de_venta/screens/auth/login_screen.dart';
 import 'package:punto_de_venta/screens/auth/register_screen.dart';
 import 'package:punto_de_venta/utils/theme_app.dart';
@@ -37,6 +41,8 @@ class _MyAppState extends State<MyApp> {
             '/register': (context) => const RegisterScreen(),
             '/home': (context) => const HomeScreen(),
             '/products': (context) => const ProductsScreen(),
+            '/customers': (context) => const CustomersScreen(),
+            '/providers': (context) => const ProvidersScreen(),
           },
           onGenerateRoute: (settings) {
             switch (settings.name) {
@@ -77,6 +83,44 @@ class _MyAppState extends State<MyApp> {
                   builder: (context) => AddEditVarietyScreen(
                     variety: args?['variety'],
                     product: args?['product'],
+                    companyId: args?['companyId'] ?? '',
+                  ),
+                );
+              case '/customers':
+                return MaterialPageRoute(
+                  builder: (context) => const CustomersScreen(),
+                );
+              case '/customers/add':
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (context) => AddEditCustomerScreen(
+                    companyId: args?['companyId'] ?? '',
+                  ),
+                );
+              case '/customers/edit':
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (context) => AddEditCustomerScreen(
+                    customer: args?['customer'],
+                    companyId: args?['companyId'] ?? '',
+                  ),
+                );
+              case '/providers':
+                return MaterialPageRoute(
+                  builder: (context) => const ProvidersScreen(),
+                );
+              case '/providers/add':
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (context) => AddEditProviderScreen(
+                    companyId: args?['companyId'] ?? '',
+                  ),
+                );
+              case '/providers/edit':
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (context) => AddEditProviderScreen(
+                    provider: args?['provider'],
                     companyId: args?['companyId'] ?? '',
                   ),
                 );

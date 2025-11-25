@@ -22,6 +22,17 @@ class CustomerService extends BaseFirebaseService<CustomerDTO> {
     json.remove('id');
     json.remove('createdAt');
     json.remove('updatedAt');
+    
+    // Asegurar que isActive tenga un valor por defecto
+    if (json['isActive'] == null) {
+      json['isActive'] = true;
+    }
+    
+    // Solo filtrar strings vacíos, permitir null para campos opcionales
+    json.removeWhere((key, value) => 
+      (value is String && value.trim().isEmpty)
+    );
+    
     return json;
   }
 
@@ -46,6 +57,14 @@ class CustomerService extends BaseFirebaseService<CustomerDTO> {
   Future<void> updateDebt(String companyId, String customerId, double newDebt) async {
     await getCompanyCollection(companyId).doc(customerId).update({
       'currentDebt': newDebt,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Activar/desactivar cliente
+  Future<void> toggleCustomerStatus(String companyId, String customerId, bool isActive) async {
+    await getCompanyCollection(companyId).doc(customerId).update({
+      'isActive': isActive,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
