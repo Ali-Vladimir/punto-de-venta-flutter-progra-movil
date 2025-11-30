@@ -18,25 +18,33 @@ import 'package:punto_de_venta/screens/app/admin/providers_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/stores_screen.dart';
 import 'package:punto_de_venta/screens/auth/login_screen.dart';
 import 'package:punto_de_venta/screens/auth/register_screen.dart';
+import 'package:punto_de_venta/screens/onboarding/onboarding_screen.dart';
+import 'package:punto_de_venta/services/onboarding_service.dart';
 import 'package:punto_de_venta/utils/theme_app.dart';
 import 'package:punto_de_venta/utils/value_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Cargar variables de entorno
   await dotenv.load(fileName: ".env");
-  
+
   // Validar configuración
   AppConfig.validateConfiguration();
   AppConfig.printConfiguration();
-  
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+
+  // Verificar si ya vio el onboarding
+  final hasSeenOnboarding = await OnboardingService.hasSeenOnboarding();
+
+  runApp(MyApp(showOnboarding: !hasSeenOnboarding));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final bool showOnboarding;
+
+  const MyApp({super.key, this.showOnboarding = false});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -50,7 +58,9 @@ class _MyAppState extends State<MyApp> {
       builder: (context, value, _) {
         return MaterialApp(
           theme: value ? ThemeApp.darkTheme() : ThemeApp.lightTheme(),
+          initialRoute: widget.showOnboarding ? '/onboarding' : '/login',
           routes: {
+            '/onboarding': (context) => const OnboardingScreen(),
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/home': (context) => const HomeScreen(),
@@ -66,9 +76,8 @@ class _MyAppState extends State<MyApp> {
               case '/products/add':
                 final args = settings.arguments as Map<String, dynamic>?;
                 return MaterialPageRoute(
-                  builder: (context) => AddEditProductScreen(
-                    companyId: args?['companyId'] ?? '',
-                  ),
+                  builder: (context) =>
+                      AddEditProductScreen(companyId: args?['companyId'] ?? ''),
                 );
               case '/products/edit':
                 final args = settings.arguments as Map<String, dynamic>?;
@@ -144,9 +153,8 @@ class _MyAppState extends State<MyApp> {
               case '/stores/add':
                 final args = settings.arguments as Map<String, dynamic>?;
                 return MaterialPageRoute(
-                  builder: (context) => AddEditStoreScreen(
-                    companyId: args?['companyId'] ?? '',
-                  ),
+                  builder: (context) =>
+                      AddEditStoreScreen(companyId: args?['companyId'] ?? ''),
                 );
               case '/stores/edit':
                 final args = settings.arguments as Map<String, dynamic>?;
