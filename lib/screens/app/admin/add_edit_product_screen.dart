@@ -128,19 +128,48 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       String? finalImageUrl = _imageUrl; // Mantener URL existente
 
       if (_imageBytes != null) {
-        final storageService = StorageService();
-        final tempId = _isEditing
-            ? widget.product!.id!
-            : DateTime.now().millisecondsSinceEpoch.toString();
+        try {
+          final storageService = StorageService();
+          final tempId = _isEditing
+              ? widget.product!.id!
+              : DateTime.now().millisecondsSinceEpoch.toString();
 
-        finalImageUrl = await storageService.uploadProductImage(
-          productId: tempId,
-          imageBytes: _imageBytes!,
-          fileName: 'product_image.jpg',
-        );
+          finalImageUrl = await storageService.uploadProductImage(
+            productId: tempId,
+            imageBytes: _imageBytes!,
+            fileName: 'product_image.jpg',
+          );
 
-        if (finalImageUrl == null) {
-          throw Exception('Error al subir la imagen');
+          if (finalImageUrl == null) {
+            print('⚠️ No se pudo subir la imagen, continuando sin imagen...');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Advertencia: No se pudo subir la imagen (CORS). Producto guardado sin imagen.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+          }
+        } catch (imageError) {
+          print('⚠️ Error al subir imagen: $imageError');
+          print('⚠️ Continuando sin imagen...');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Advertencia: Error al subir imagen. Producto guardado sin imagen.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          // No lanzar error, continuar sin imagen
+          finalImageUrl = _imageUrl; // Mantener URL existente o null
         }
       }
 
