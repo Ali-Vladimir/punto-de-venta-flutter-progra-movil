@@ -1,6 +1,7 @@
 class UserInfoDTO {
   final String? userId;
   final String? displayName;
+  final String? email;
   final String? phone;
   final String? roleId;
   final String? storeId;
@@ -15,6 +16,7 @@ class UserInfoDTO {
   UserInfoDTO({
     this.userId,
     this.displayName,
+    this.email,
     this.phone,
     required this.roleId,
     this.storeId,
@@ -31,6 +33,7 @@ class UserInfoDTO {
     return UserInfoDTO(
       userId: json['userId'] as String?,
       displayName: json['displayName'] as String?,
+      email: json['email'] as String?,
       phone: json['phone'] as String?,
       roleId: json['roleId'] as String?,
       storeId: json['storeId'] as String?,
@@ -52,6 +55,7 @@ class UserInfoDTO {
     return {
       'userId': userId,
       'displayName': displayName,
+      'email': email,
       'phone': phone,
       'roleId': roleId,
       'storeId': storeId,
