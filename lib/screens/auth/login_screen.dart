@@ -66,11 +66,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Verificar si ya vio el onboarding
         final hasSeenOnboarding = await OnboardingService.hasSeenOnboarding();
+        print('🎯 Onboarding status: hasSeenOnboarding = $hasSeenOnboarding');
 
         // Navegar según si ya vio el onboarding
         if (hasSeenOnboarding) {
+          print('✅ Usuario YA vio onboarding → Navegando a /home');
           Navigator.pushReplacementNamed(context, '/home');
         } else {
+          print('🎉 Usuario NUEVO → Navegando a /onboarding');
           Navigator.pushReplacementNamed(context, '/onboarding');
         }
       } else {
@@ -119,11 +122,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Verificar si ya vio el onboarding
         final hasSeenOnboarding = await OnboardingService.hasSeenOnboarding();
+        print(
+          '🎯 Onboarding status (Google): hasSeenOnboarding = $hasSeenOnboarding',
+        );
 
         // Navegar según si ya vio el onboarding
         if (hasSeenOnboarding) {
+          print('✅ Usuario YA vio onboarding → Navegando a /home');
           Navigator.pushReplacementNamed(context, '/home');
         } else {
+          print('🎉 Usuario NUEVO → Navegando a /onboarding');
           Navigator.pushReplacementNamed(context, '/onboarding');
         }
       }

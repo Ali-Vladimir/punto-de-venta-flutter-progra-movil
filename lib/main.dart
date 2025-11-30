@@ -14,6 +14,7 @@ import 'package:punto_de_venta/screens/app/admin/new_sale_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/sales_management_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/product_varieties_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/products_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/profile_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/providers_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/stores_screen.dart';
 import 'package:punto_de_venta/screens/auth/login_screen.dart';
@@ -58,6 +59,7 @@ class _MyAppState extends State<MyApp> {
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/home': (context) => const HomeScreen(),
+            '/profile': (context) => const ProfileScreen(),
             '/products': (context) => const ProductsScreen(),
             '/customers': (context) => const CustomersScreen(),
             '/providers': (context) => const ProvidersScreen(),
