@@ -206,6 +206,7 @@ class AuthService {
         final userInfo = UserInfoDTO(
           userId: credential.user!.uid,
           displayName: displayName ?? credential.user!.email,
+          email: credential.user!.email,
           phone: phone,
           photoURL: null, // Los usuarios de email no tienen foto por defecto
           authProvider: 'email', // Proveedor de autenticación
