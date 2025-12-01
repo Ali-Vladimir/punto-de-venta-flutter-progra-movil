@@ -1,5 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/sale_service.dart';
+import '../../../services/customer_service.dart';
+import '../../../services/product_service.dart';
+import '../../../models/sale_dto.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,18 +18,144 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color _accentColor = const Color(0xFF00BFA5);
   final Color _backgroundColor = const Color(0xFFF5F7FA);
 
+  final AuthService _authService = AuthService();
+  final SaleService _saleService = SaleService();
+  final CustomerService _customerService = CustomerService();
+  final ProductService _productService = ProductService();
+
   User? user;
+  bool _isLoading = true;
+  
+  // Dashboard stats
+  double _totalSales = 0.0;
+  double _yesterdaySales = 0.0;
+  int _totalOrders = 0;
+  int _pendingOrders = 0;
+  int _totalCustomers = 0;
+  int _newCustomersToday = 0;
+  int _lowStockProducts = 0;
+  List<SaleDTO> _recentSales = [];
 
   @override
   void initState() {
     super.initState();
     user = FirebaseAuth.instance.currentUser;
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final companyId = _authService.currentCompanyId;
+      if (companyId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Cargar datos en paralelo
+      await Future.wait([
+        _loadSalesData(companyId),
+        _loadCustomersData(companyId),
+        _loadProductsData(companyId),
+      ]);
+    } catch (e) {
+      debugPrint('Error loading dashboard data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadSalesData(String companyId) async {
+    try {
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final yesterday = startOfDay.subtract(const Duration(days: 1));
+      
+      // Obtener todas las ventas
+      final allSales = await _saleService.getAll(companyId);
+      
+      // Filtrar ventas de hoy
+      final todaySales = allSales.where((sale) {
+        return sale.saleDate != null && sale.saleDate!.isAfter(startOfDay);
+      }).toList();
+      
+      // Filtrar ventas de ayer
+      final yesterdaySalesList = allSales.where((sale) {
+        return sale.saleDate != null && 
+               sale.saleDate!.isAfter(yesterday) && 
+               sale.saleDate!.isBefore(startOfDay);
+      }).toList();
+      
+      // Calcular totales
+      _totalSales = todaySales.fold(0.0, (sum, sale) => sum + (sale.total ?? 0.0));
+      _yesterdaySales = yesterdaySalesList.fold(0.0, (sum, sale) => sum + (sale.total ?? 0.0));
+      _totalOrders = todaySales.length;
+      
+      // Contar pedidos pendientes
+      _pendingOrders = todaySales.where((sale) {
+        return sale.status != 'completed';
+      }).length;
+      
+      // Obtener ventas recientes (últimas 5)
+      _recentSales = allSales.take(5).toList();
+      
+    } catch (e) {
+      debugPrint('Error loading sales data: $e');
+    }
+  }
+
+  Future<void> _loadCustomersData(String companyId) async {
+    try {
+      final customers = await _customerService.getAll(companyId);
+      _totalCustomers = customers.length;
+      
+      // Contar clientes nuevos de hoy
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      
+      _newCustomersToday = customers.where((customer) {
+        return customer.createdAt != null && 
+               customer.createdAt!.isAfter(startOfDay);
+      }).length;
+    } catch (e) {
+      debugPrint('Error loading customers data: $e');
+    }
+  }
+
+  Future<void> _loadProductsData(String companyId) async {
+    try {
+      final products = await _productService.getAll(companyId);
+      
+      // Contar productos inactivos o que necesitan atención
+      // Como ProductDTO no tiene campo stock, contamos productos inactivos
+      _lowStockProducts = products.where((product) {
+        return product.isActive == false;
+      }).length;
+    } catch (e) {
+      debugPrint('Error loading products data: $e');
+    }
   }
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return 'Hace ${difference.inDays} ${difference.inDays == 1 ? 'día' : 'días'}';
+    } else if (difference.inHours > 0) {
+      return 'Hace ${difference.inHours} ${difference.inHours == 1 ? 'hora' : 'horas'}';
+    } else if (difference.inMinutes > 0) {
+      return 'Hace ${difference.inMinutes} ${difference.inMinutes == 1 ? 'minuto' : 'minutos'}';
+    } else {
+      return 'Hace unos momentos';
     }
   }
 
@@ -78,53 +209,62 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
 
             // Stats Cards
-            LayoutBuilder(
-              builder: (context, constraints) {
-                int crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
-                double childAspectRatio = constraints.maxWidth > 600
-                    ? 1.5
-                    : 1.2;
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      int crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+                      double childAspectRatio =
+                          constraints.maxWidth > 600 ? 1.5 : 1.2;
 
-                return GridView.count(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: childAspectRatio,
-                  children: [
-                    _buildStatCard(
-                      'Ventas Totales',
-                      '\$12,450.00',
-                      Icons.attach_money,
-                      Colors.green,
-                      '+15% vs ayer',
-                    ),
-                    _buildStatCard(
-                      'Pedidos',
-                      '45',
-                      Icons.shopping_bag_outlined,
-                      Colors.orange,
-                      '5 pendientes',
-                    ),
-                    _buildStatCard(
-                      'Clientes',
-                      '12',
-                      Icons.people_outline,
-                      Colors.blue,
-                      '+2 nuevos',
-                    ),
-                    _buildStatCard(
-                      'Alerta Stock',
-                      '3',
-                      Icons.warning_amber_rounded,
-                      Colors.red,
-                      'Productos bajos',
-                    ),
-                  ],
-                );
-              },
-            ),
+                      // Calcular porcentaje de cambio vs ayer
+                      final percentChange = _yesterdaySales > 0
+                          ? ((_totalSales - _yesterdaySales) / _yesterdaySales * 100)
+                          : 0.0;
+                      final changeText = percentChange >= 0
+                          ? '+${percentChange.toStringAsFixed(1)}% vs ayer'
+                          : '${percentChange.toStringAsFixed(1)}% vs ayer';
+
+                      return GridView.count(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        childAspectRatio: childAspectRatio,
+                        children: [
+                          _buildStatCard(
+                            'Ventas Totales',
+                            '\$${_totalSales.toStringAsFixed(2)}',
+                            Icons.attach_money,
+                            Colors.green,
+                            changeText,
+                          ),
+                          _buildStatCard(
+                            'Pedidos',
+                            '$_totalOrders',
+                            Icons.shopping_bag_outlined,
+                            Colors.orange,
+                            '$_pendingOrders pendientes',
+                          ),
+                          _buildStatCard(
+                            'Clientes',
+                            '$_totalCustomers',
+                            Icons.people_outline,
+                            Colors.blue,
+                            '+$_newCustomersToday nuevos hoy',
+                          ),
+                          _buildStatCard(
+                            'Alerta',
+                            '$_lowStockProducts',
+                            Icons.warning_amber_rounded,
+                            Colors.red,
+                            'Productos inactivos',
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
             const SizedBox(height: 32),
 
@@ -143,33 +283,54 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 5,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue[50],
-                      child: Icon(
-                        Icons.receipt_long,
-                        color: _primaryColor,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text('Venta #${1000 + index}'),
-                    subtitle: Text('Hace ${index * 15} minutos'),
-                    trailing: Text(
-                      '\$${(index + 1) * 150}.00',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  );
-                },
-              ),
+              child: _isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : _recentSales.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Center(
+                            child: Text(
+                              'No hay ventas recientes',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _recentSales.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final sale = _recentSales[index];
+                            final timeAgo = sale.saleDate != null
+                                ? _getTimeAgo(sale.saleDate!)
+                                : 'Fecha desconocida';
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue[50],
+                                child: Icon(
+                                  Icons.receipt_long,
+                                  color: _primaryColor,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text('Venta #${sale.number ?? 'S/N'}'),
+                              subtitle: Text(timeAgo),
+                              trailing: Text(
+                                '\$${(sale.total ?? 0.0).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -258,12 +419,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ListTile(
             leading: const Icon(Icons.group_outlined),
             title: const Text('Empleados'),
-            onTap: () {},
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/employees');
+            },
           ),
           ListTile(
             leading: const Icon(Icons.bar_chart),
             title: const Text('Reportes'),
-            onTap: () {},
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/reports');
+            },
           ),
           const Divider(),
           ListTile(

@@ -4,11 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:punto_de_venta/config/app_config.dart';
 import 'package:punto_de_venta/firebase_options.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_customer_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/add_edit_employee_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_product_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_provider_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_store_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/add_edit_variety_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/customers_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/employees_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/home_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/new_sale_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/sales_management_screen.dart';
@@ -16,10 +18,13 @@ import 'package:punto_de_venta/screens/app/admin/product_varieties_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/products_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/profile_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/providers_screen.dart';
+import 'package:punto_de_venta/screens/app/admin/reports_screen.dart';
 import 'package:punto_de_venta/screens/app/admin/stores_screen.dart';
+import 'package:punto_de_venta/models/employee_dto.dart';
 import 'package:punto_de_venta/screens/auth/login_screen.dart';
 import 'package:punto_de_venta/screens/auth/register_screen.dart';
 import 'package:punto_de_venta/screens/onboarding/onboarding_screen.dart';
+import 'package:punto_de_venta/services/auth_service.dart';
 import 'package:punto_de_venta/utils/theme_app.dart';
 import 'package:punto_de_venta/utils/value_listener.dart';
 
@@ -34,6 +39,10 @@ void main() async {
   AppConfig.printConfiguration();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Inicializar contexto del usuario si ya está autenticado
+  final authService = AuthService();
+  await authService.initializeContext();
 
   runApp(const MyApp());
 }
@@ -64,6 +73,8 @@ class _MyAppState extends State<MyApp> {
             '/customers': (context) => const CustomersScreen(),
             '/providers': (context) => const ProvidersScreen(),
             '/stores': (context) => const StoresScreen(),
+            '/employees': (context) => const EmployeesScreen(),
+            '/reports': (context) => const ReportsScreen(),
             '/new-sale': (context) => const NewSaleScreen(),
             '/sales-management': (context) => const SalesManagementScreen(),
           },
@@ -159,6 +170,15 @@ class _MyAppState extends State<MyApp> {
                     store: args?['store'],
                     companyId: args?['companyId'] ?? '',
                   ),
+                );
+              case '/add-employee':
+                return MaterialPageRoute(
+                  builder: (context) => const AddEditEmployeeScreen(),
+                );
+              case '/edit-employee':
+                final employee = settings.arguments as EmployeeDTO?;
+                return MaterialPageRoute(
+                  builder: (context) => AddEditEmployeeScreen(employee: employee),
                 );
               default:
                 return null;
