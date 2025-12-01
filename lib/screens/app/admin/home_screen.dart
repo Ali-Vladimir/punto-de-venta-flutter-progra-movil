@@ -76,15 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
             const SizedBox(height: 24),
-
+            
             // Stats Cards
             LayoutBuilder(
               builder: (context, constraints) {
                 int crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
-                double childAspectRatio = constraints.maxWidth > 600
-                    ? 1.5
-                    : 1.2;
-
+                double childAspectRatio = constraints.maxWidth > 600 ? 1.5 : 1.2;
+                
                 return GridView.count(
                   crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 16,
@@ -125,9 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-
+            
             const SizedBox(height: 32),
-
+            
             // Recent Activity Section
             Text(
               'Actividad Reciente',
@@ -140,9 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -152,11 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Colors.blue[50],
-                      child: Icon(
-                        Icons.receipt_long,
-                        color: _primaryColor,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.receipt_long, color: _primaryColor, size: 20),
                     ),
                     title: Text('Venta #${1000 + index}'),
                     subtitle: Text('Hace ${index * 15} minutos'),
@@ -179,14 +171,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDrawer() {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: _primaryColor,
-              // Evitar que intente cargar imagen de fondo
-            ),
+            decoration: BoxDecoration(color: _primaryColor),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
@@ -267,25 +255,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Mi Perfil'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.settings_outlined),
             title: const Text('Configuración'),
             onTap: () {},
           ),
+          const Spacer(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Cerrar Sesión',
-              style: TextStyle(color: Colors.red),
-            ),
+            title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
             onTap: _logout,
           ),
           const SizedBox(height: 16),
@@ -294,13 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    String subtitle,
-  ) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -315,21 +287,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(icon, color: color, size: 30),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     subtitle,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -347,7 +312,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
